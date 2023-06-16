@@ -6,14 +6,19 @@
 
   - name: update repository index
     apt:
-      update_cache: yes
+      update_cache: yes 
+#centos does not have apt package this below tells that if O.S is Ubuntu then use apt package  
+    when: ansible_distribution == "Ubuntu"
 
   - name: install apache2 package
     apt: 
       name: apache2
       state: latest
+#We can also use this if we have a mix of O.S
+    when: ansible_distribution in ["Debian","Ubuntu"]
 
   - name: add php support for apache
     apt: 
       name: libapache2-mod-php
       state: latest
+    when: ansible_distribution == "Ubuntu"
