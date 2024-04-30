@@ -1,0 +1,19 @@
+- hosts: "workers"
+  # remote_user: "{{userName}}"
+  become: yes
+  become_user: root
+  gather_facts: yes
+  connection: ssh
+
+  tasks:
+
+    - name: Create daemon.json with content
+      template:
+        src: daemon.json.j2
+        dest: /etc/docker/daemon.json
+
+    - name: Start Docker Daeomon
+      shell: sudo systemctl restart docker
+
+    - name: chmod docker.sock
+      shell: sudo chmod 777 /var/run/docker.sock
