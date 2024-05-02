@@ -1,4 +1,4 @@
-- hosts: "workers"
+- hosts: "masters, workers"
   # remote_user: "{{userName}}"
   become: yes
   become_user: root
@@ -72,14 +72,14 @@
                sudo modprobe br_netfilter
 
 
-    - name: Set system configurations for Kubernetes networking
-      file:
-         path: "/etc/sysctl.d/99-kubernetes-cri.conf"
-         state: "touch"
+    # - name: Set system configurations for Kubernetes networking
+    #   file:
+    #      path: "/etc/sysctl.d/99-kubernetes-cri.conf"
+    #      state: "touch"
 
-    - name: Add conf for containerd
+    - name: Configure critical kernal parameters for kubernetes
       blockinfile:
-         path: "/etc/sysctl.d/99-kubernetes-cri.conf"
+         path: "/etc/sysctl.d/kubernetes.conf"
          block: |
                 net.bridge.bridge-nf-call-iptables = 1
                 net.ipv4.ip_forward = 1
@@ -88,50 +88,72 @@
     - name: Apply new settings
       command: sudo sysctl --system
 
+    - name: Enable the Docker repository
+      shell: |
+               sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmour -o /etc/apt/trusted.gpg.d/docker.gpg
+               sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+
+
     - name: install containerd
       shell: |
-               sudo apt-get update && sudo apt-get install -y containerd
-               sudo mkdir -p /etc/containerd
-               sudo containerd config default | sudo tee /etc/containerd/config.toml
+               sudo apt update && sudo apt install -y containerd.io
+               containerd config default | sudo tee /etc/containerd/config.toml >/dev/null 2>&1
+               sudo sed -i 's/SystemdCgroup \= false/SystemdCgroup \= true/g' /etc/containerd/config.toml
                sudo systemctl restart containerd
+               sudo systemctl enable containerd
+
 
     - name: disable swap
       shell: |
                sudo swapoff -a
                sudo sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab
 
-    - name: install and configure dependencies
-      shell: |
-               sudo apt-get update && sudo apt-get install -y apt-transport-https curl
-               curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
 
-    - name: Create kubernetes repo file
-      file:
-         path: "/etc/apt/sources.list.d/kubernetes.list"
-         state: "touch"
+    - name: Add Kubernetes APT repository using shell command
+      shell: echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list
 
-    - name: Add K8s Source
-      blockinfile:
-         path: "/etc/apt/sources.list.d/kubernetes.list"
-         block: |
-               deb https://apt.kubernetes.io/ kubernetes-xenial main
+
+    - name: Download the public signing key for kubernetes package repositories
+      shell: curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+
+
+    # - name: install and configure dependencies
+    #   shell: |
+    #            sudo apt-get update && sudo apt-get install -y apt-transport-https curl
+    #            curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+
+               
+
+    # - name: Create kubernetes repo file
+    #   file:
+    #      path: "/etc/apt/sources.list.d/kubernetes.list"
+    #      state: "touch"
+
+    # - name: Add K8s Source
+    #   blockinfile:
+    #      path: "/etc/apt/sources.list.d/kubernetes.list"
+    #      block: |
+    #            deb https://apt.kubernetes.io/ kubernetes-xenial main
+
 
     - name: install kubernetes
       shell: |
-               sudo apt-get update
-               sudo apt-get install -qy kubelet=1.19.0-00 kubectl=1.19.0-00 kubeadm=1.19.0-00
+               sudo apt update
+               sudo apt install -y kubelet kubeadm kubectl
                sudo apt-mark hold kubelet kubeadm kubectl
 
-    - name: Add content to daemon.json
-      template:
-        src: daemon.json.j2
-        dest: /etc/docker/daemon.json
-      become: yes
+# Kubernets does not use Docker anymore to manage containers therefore the below tasks are now useless
 
-    - name: start docker
-      shell: systemctl start docker
+    # - name: Add content to daemon.json
+    #   template:
+    #     src: daemon.json.j2
+    #     dest: /etc/docker/daemon.json
+    #   become: yes
 
-    - name: chmod docker.sock
-      shell: sudo chmod 777 /var/run/docker.sock
+    # - name: start docker
+    #   shell: systemctl start docker
+
+    # - name: chmod docker.sock
+    #   shell: sudo chmod 777 /var/run/docker.sock
 
     
