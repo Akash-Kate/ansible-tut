@@ -14,6 +14,9 @@
         insertafter: '\[plugins."io.containerd.grpc.v1.cri".registry.mirrors."10.210.12.195:5022"\]'
         line: '  endpoint = ["http://10.210.12.195:5022"]'
 
+    - name: Restart containerd service
+      shell: sudo systemctl restart containerd
+
     - name: Add content to daemon.json
       template:
         src: daemon.json.j2
@@ -26,14 +29,11 @@
     - name: chmod docker.sock
       shell: sudo chmod 777 /var/run/docker.sock
 
-    - name: Configure containerd to access private docker registry
-      blockinfile:
-        path: /etc/containerd/config.toml
-        marker: "# {mark} ANSIBLE MANAGED BLOCK"
-        insertafter: '[plugins."io.containerd.grpc.v1.cri".registry.mirrors]'
-        block: |
-          [plugins."io.containerd.grpc.v1.cri".registry.mirrors."10.210.12.195:5022"]
-            endpoint = ["http://10.210.12.195:5022"]
+    - name: Add content to kubeadm-config.yaml
+      template:
+        src: kubeadm_config.j2
+        dest: /etc/kubernetes/kubeadm-config.yaml
+      become: yes
 
     - name: initialize the cluster
       shell: kubeadm init 
