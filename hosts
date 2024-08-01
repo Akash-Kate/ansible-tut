@@ -1,0 +1,5 @@
+[masters]
+master ansible_host=user1@10.210.13.86 ansible_user=user1 ansible_password=P@ssw0rd_!234$ ansible_sudo_pass=P@ssw0rd_!234$ userName=user1
+# [workers]
+# worker1 ansible_host=user1@10.210.13.86 ansible_user=user1 ansible_password=P@ssw0rd_!234$ ansible_sudo_pass=P@ssw0rd_!234$ userName=user1
+# worker2 ansible_host=user1@10.210.13.87 ansible_user=user1 ansible_password=P@ssw0rd_!234$ ansible_sudo_pass=P@ssw0rd_!234$ userName=user1
